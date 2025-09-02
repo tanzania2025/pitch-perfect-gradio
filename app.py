@@ -1,54 +1,79 @@
 import gradio as gr
 import os
+import logging
+from google.cloud import storage
 from api_client import PitchPerfectAPI
 from config import Config
 from components.audio_input import create_audio_input
-from components.results_display import create_results_display
-from components.settings_panel import create_settings_panel
+
+# Configure logging
+logging.basicConfig(level=getattr(logging, Config.LOG_LEVEL))
+logger = logging.getLogger(__name__)
 
 # Initialize API client
 api_client = PitchPerfectAPI()
 
-def process_speech(audio_file, voice_selection, analysis_depth, improvement_focus):
-    """Main processing function"""
+class GCSModelLoader:
+    """Load models from Google Cloud Storage"""
+
+    def __init__(self):
+        self.client = storage.Client(project=Config.GCP_PROJECT_ID)
+        self.bucket = self.client.bucket(Config.GCS_BUCKET_NAME)
+
+    def get_available_models(self):
+        """Get list of available models from GCS"""
+        try:
+            blobs = self.bucket.list_blobs(prefix=Config.GCS_MODEL_PATH)
+            models = [blob.name.split('/')[-1] for blob in blobs if blob.name.endswith('.pth')]
+            logger.info(f"Found {len(models)} models in GCS")
+            return models
+        except Exception as e:
+            logger.error(f"Failed to list models from GCS: {e}")
+            return []
+
+try:
+    model_loader = GCSModelLoader()
+except Exception as e:
+    logger.warning(f"Skipping GCS model loader initialization: {e}")
+    model_loader = None
+
+# Initialize API client
+api_client = PitchPerfectAPI()
+
+def process_speech(audio_file, voice_selection, analysis_depth, improvement_focus, progress=gr.Progress()):
     if audio_file is None:
         return None, "Please upload an audio file", None, None, None
 
-    # Check backend availability
     if not api_client.health_check():
         return None, "❌ Backend service is unavailable", None, None, None
 
-    # Prepare settings
     settings = {
         "voice_selection": voice_selection,
         "analysis_depth": analysis_depth,
         "improvement_focus": improvement_focus
     }
 
-    # Process audio
-    with gr.Progress() as progress:
-        progress(0.1, "Uploading audio...")
+    progress(0.1, desc="Uploading audio...")
 
-        with open(audio_file, 'rb') as f:
-            progress(0.3, "Processing speech...")
-            result = api_client.process_audio(f, settings)
+    with open(audio_file, "rb") as f:
+        progress(0.3, desc="Processing speech...")
+        result = api_client.process_audio(f, settings)
 
-        if "error" in result:
-            return None, f"❌ {result['error']}", None, None, None
+    if "error" in result:
+        return None, f"❌ {result['error']}", None, None, None
 
-        progress(0.9, "Finalizing results...")
+    progress(0.9, desc="Finalizing results...")
 
-    # Extract results
     transcript = result.get("transcript", "")
     sentiment_analysis = result.get("sentiment_analysis", {})
     tonal_analysis = result.get("tonal_analysis", {})
     improvements = result.get("improvements", "")
     improved_audio = result.get("improved_audio_path")
 
-    # Format results for display
     analysis_text = format_analysis_results(sentiment_analysis, tonal_analysis)
 
     return improved_audio, transcript, analysis_text, improvements, "✅ Processing complete!"
+
 
 def format_analysis_results(sentiment, tonal):
     """Format analysis results for display"""
@@ -70,9 +95,23 @@ def format_analysis_results(sentiment, tonal):
 def create_interface():
     """Create the main Gradio interface"""
 
-    # Get voice options from backend
-    voice_data = api_client.get_voice_options()
-    voice_choices = voice_data.get("voices", ["Default Voice"])
+    try:
+        voice_data = api_client.get_voice_options() or {}
+        voice_choices = voice_data.get("voices")
+        if not voice_choices:
+            logger.warning("No voices returned by backend, falling back to Default Voice")
+            voice_choices = ["Default Voice"]
+    except Exception as e:
+        logger.error(f"Error fetching voice options: {e}")
+        voice_choices = ["Default Voice"]
+
+
+    voice_selection = gr.Dropdown(
+    choices=voice_choices,
+    value=voice_choices[0],   # always safe now
+    label="TTS Voice"
+    )
+
 
     with gr.Blocks(
         title=Config.APP_TITLE,
@@ -177,10 +216,15 @@ def create_interface():
     return demo
 
 if __name__ == "__main__":
+    logger.info(f"Starting Pitch Perfect Frontend in {Config.ENVIRONMENT} mode")
+    logger.info(f"Server will run on {Config.SERVER_NAME}:{Config.SERVER_PORT}")
+
     demo = create_interface()
     demo.launch(
         server_name=Config.SERVER_NAME,
         server_port=Config.SERVER_PORT,
         share=Config.SHARE,
-        show_error=True
+        show_error=True,
+        auth=None,  # Add authentication if needed
+        ssl_verify=False if Config.ENVIRONMENT == "development" else True
     )
