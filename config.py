@@ -5,7 +5,7 @@ load_dotenv()
 
 class Config:
     # Backend API Configuration
-    BACKEND_API_URL = os.getenv("BACKEND_API_URL", "http://localhost:8000")
+    BACKEND_API_URL = os.getenv("BACKEND_API_URL", "http://localhost:8080")
 
     # UI Configuration
     APP_TITLE = "Pitch Perfect - Speech Improvement System"
