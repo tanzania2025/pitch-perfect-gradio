@@ -1,7 +1,16 @@
 import gradio as gr
 import os
 import sys
+import logging
 from typing import Dict, Any, Optional
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+logger = logging.getLogger(__name__)
 
 # Add the current directory to the Python path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -11,8 +20,8 @@ try:
     from config import Config
     from components.results_display import create_results_display, format_results_from_backend
 except ImportError as e:
-    print(f"Import error: {e}")
-    print("Please make sure all component files are created correctly.")
+    logger.error(f"Import error: {e}")
+    logger.error("Please make sure all component files are created correctly.")
     sys.exit(1)
 
 # Initialize API client
@@ -82,7 +91,7 @@ def safe_get_voice_options() -> list:
             return ["Default Voice", "Professional Voice", "Casual Voice"]
         return voices
     except Exception as e:
-        print(f"Warning: Could not load voice options: {e}")
+        logger.warning(f"Could not load voice options: {e}")
         return ["Default Voice", "Professional Voice", "Casual Voice"]
 
 def update_text_input(script_choice):
@@ -97,11 +106,11 @@ def process_speech(audio_file, text_input, voice_selection, analysis_depth, impr
     # Show loading progress
     progress(0.1, desc="Starting analysis...")
 
-    print(f"Processing audio: {audio_file}")
-    print(f"Text input: {text_input[:100]}..." if text_input else "No text")
-    print(f"Voice: {voice_selection}")
-    print(f"Depth: {analysis_depth}")
-    print(f"Focus: {improvement_focus}")
+    logger.info(f"🎤 Processing audio: {audio_file}")
+    logger.info(f"📝 Text input: {text_input[:100]}..." if text_input else "No text")
+    logger.info(f"🔊 Voice: {voice_selection}")
+    logger.info(f"🔍 Depth: {analysis_depth}")
+    logger.info(f"🎯 Focus: {improvement_focus}")
 
     if audio_file is None and not text_input:
         return create_empty_results("❌ Please upload an audio file or provide text input")
@@ -116,7 +125,7 @@ def process_speech(audio_file, text_input, voice_selection, analysis_depth, impr
                 if file_ext not in Config.SUPPORTED_FORMATS:
                     return create_empty_results(f"❌ Unsupported file format: {file_ext}")
         except Exception as e:
-            print(f"Validation error: {e}")
+            logger.error(f"Validation error: {e}")
 
     progress(0.3, desc="Connecting to backend...")
 
@@ -125,7 +134,7 @@ def process_speech(audio_file, text_input, voice_selection, analysis_depth, impr
         if not api_client.health_check():
             return create_empty_results("❌ Backend service is unavailable. Please ensure your backend is running.")
     except Exception as e:
-        print(f"Health check error: {e}")
+        logger.error(f"Health check error: {e}")
         return create_empty_results("❌ Could not connect to backend service")
 
     progress(0.5, desc="Processing audio/text...")
@@ -174,7 +183,7 @@ def process_speech(audio_file, text_input, voice_selection, analysis_depth, impr
 
     except Exception as e:
         error_msg = f"❌ Unexpected error during processing: {str(e)}"
-        print(f"Processing error: {e}")
+        logger.error(f"Processing error: {e}")
         return create_empty_results(error_msg)
 
 def create_interface():
@@ -390,25 +399,26 @@ def create_interface():
 def main():
     """Main application entry point"""
 
-    print("🚀 Starting Pitch Perfect Gradio Frontend...")
-    print("=" * 50)
-    print(f"App Title: {Config.APP_TITLE}")
-    print(f"Backend URL: {Config.BACKEND_API_URL}")
-    print(f"Server Port: {Config.SERVER_PORT}")
-    print("=" * 50)
+    logger.info("🚀 Starting Pitch Perfect Gradio Frontend...")
+    logger.info("=" * 60)
+    logger.info(f"📱 App Title: {Config.APP_TITLE}")
+    logger.info(f"🌐 Backend API URL: {Config.BACKEND_API_URL}")
+    logger.info(f"🚪 Server Port: {Config.SERVER_PORT}")
+    logger.info(f"📍 Server Name: {Config.SERVER_NAME}")
+    logger.info("=" * 60)
 
     # Test backend connection
-    print("🔍 Testing backend connection...")
+    logger.info("🔍 Testing backend connection...")
     if api_client.health_check():
-        print("✅ Backend is accessible")
+        logger.info("✅ Backend is accessible")
     else:
-        print("⚠️ Backend is not accessible - app will run but processing will fail")
-        print(f"   Make sure your backend is running at: {Config.BACKEND_API_URL}")
+        logger.warning("⚠️ Backend is not accessible - app will run but processing will fail")
+        logger.warning(f"   Make sure your backend is running at: {Config.BACKEND_API_URL}")
 
     # Create and launch interface
     try:
         demo = create_interface()
-        print("🌐 Launching Gradio interface...")
+        logger.info("🌐 Launching Gradio interface...")
 
         demo.launch(
             server_name=Config.SERVER_NAME,
@@ -418,7 +428,7 @@ def main():
         )
 
     except Exception as e:
-        print(f"❌ Failed to launch application: {e}")
+        logger.error(f"❌ Failed to launch application: {e}")
         sys.exit(1)
 
 if __name__ == "__main__":
