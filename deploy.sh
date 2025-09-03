@@ -89,7 +89,8 @@ gcp_deploy() {
         --memory 2Gi \
         --cpu 1 \
         --timeout 300 \
-        --max-instances 10
+        --max-instances 10 \
+        --set-env-vars BACKEND_API_URL=https://pitch-perfect-backend-792590041292.europe-west1.run.app
 
     # Get service URL
     SERVICE_URL=$(gcloud run services describe ${SERVICE_NAME} --region=${REGION} --format="value(status.url)")
