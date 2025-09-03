@@ -2,8 +2,12 @@ import requests
 import json
 import os
 import mimetypes
+import logging
 from typing import Optional, Dict, Any
 from config import Config
+
+# Configure logger
+logger = logging.getLogger(__name__)
 
 class PitchPerfectAPI:
     def __init__(self):
@@ -14,12 +18,12 @@ class PitchPerfectAPI:
         """Check if backend API is available"""
         try:
             url = f"{self.base_url}/health"
-            print(f"Checking backend health at: {url}")
+            logger.info(f"🔍 Checking backend health at: {url}")
             response = requests.get(url, timeout=5)
-            print(f"Health check response: {response.status_code}")
+            logger.info(f"✅ Health check response: {response.status_code}")
             return response.status_code == 200
         except Exception as e:
-            print(f"Health check failed: {e}")
+            logger.error(f"❌ Health check failed: {e}")
             return False
 
     def process_audio(self, audio_file, settings: Optional[Dict] = None) -> Dict[str, Any]:
@@ -69,15 +73,15 @@ class PitchPerfectAPI:
             if response.status_code == 200:
                 result = response.json()
 
-                # Debug: Print the actual response structure (optional, can be removed in production)
-                print("=== BACKEND RESPONSE DEBUG ===")
-                print("Keys in response:", list(result.keys()))
+                # Debug: Log the actual response structure
+                logger.debug("=== BACKEND RESPONSE DEBUG ===")
+                logger.debug(f"Keys in response: {list(result.keys())}")
                 for key, value in result.items():
                     if isinstance(value, dict):
-                        print(f"{key}: {list(value.keys())}")
+                        logger.debug(f"{key}: {list(value.keys())}")
                     else:
-                        print(f"{key}: {type(value)}")
-                print("=== END DEBUG ===")
+                        logger.debug(f"{key}: {type(value)}")
+                logger.debug("=== END DEBUG ===")
 
                 # Return the complete backend response with all fields intact
                 # The backend already provides well-structured data
@@ -121,8 +125,10 @@ class PitchPerfectAPI:
                 return {"error": f"API Error: {error_detail}"}
 
         except requests.exceptions.Timeout:
+            logger.error("⏱️ Request timeout - audio processing took too long")
             return {"error": "Request timeout - audio processing took too long"}
         except Exception as e:
+            logger.error(f"🔌 Connection error: {str(e)}")
             return {"error": f"Connection error: {str(e)}"}
 
     def get_voice_options(self) -> Dict[str, Any]:
