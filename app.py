@@ -44,7 +44,6 @@ def create_empty_results(error_message):
         None,          # tonal_chart
         {},            # voice_quality_details
         "",            # improved_text
-        "",            # issues_found
         "",            # improvement_feedback
         {},            # prosody_guide
         None,          # improved_audio
@@ -66,7 +65,6 @@ def format_for_gradio_outputs(formatted_results):
         formatted_results.get('tonal_chart'),
         formatted_results.get('voice_quality_details', {}),
         formatted_results.get('improved_text', ''),
-        formatted_results.get('issues_found', ''),
         formatted_results.get('improvement_feedback', ''),
         formatted_results.get('prosody_guide', {}),
         formatted_results.get('improved_audio'),
@@ -320,7 +318,6 @@ def create_interface():
             with gr.Column():
                 gr.HTML('<h3 class="section-header">🔊 Feedback</h3>')
                 improved_text_output = gr.Textbox(label="Improved Text", lines=5)
-                issues_found_output = gr.Textbox(label="Issues Found", lines=3)
                 improvement_feedback_output = gr.Textbox(label="Improvement Feedback", lines=5)
 
         # Analysis Sections
@@ -370,7 +367,6 @@ def create_interface():
                 tonal_chart_output,
                 voice_quality_details_output,
                 improved_text_output,
-                issues_found_output,
                 improvement_feedback_output,
                 prosody_guide_output,
                 improved_audio_output,
