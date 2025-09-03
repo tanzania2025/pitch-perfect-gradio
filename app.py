@@ -18,26 +18,34 @@ except ImportError as e:
 # Initialize API client
 api_client = PitchPerfectAPI()
 
+# Example scripts
+EXAMPLE_SCRIPTS = {
+    "Professional Script": """Good morning, team. Today I'd like to discuss our quarterly performance and the strategic initiatives we're implementing for the upcoming fiscal year. Our revenue has increased by fifteen percent compared to last quarter, demonstrating the effectiveness of our customer-centric approach. Moving forward, we'll be focusing on three key areas: enhancing our digital infrastructure, expanding our market presence in emerging territories, and investing in employee development programs. These initiatives will position us competitively in the marketplace while ensuring sustainable growth. I believe that with our collective expertise and commitment to excellence, we can achieve our ambitious targets. The data shows promising trends in customer satisfaction and retention rates, which validates our strategic direction. Let's maintain this momentum and continue delivering exceptional value to our stakeholders.""",
+
+    "Funny Script": """So I went to the grocery store yesterday, and I swear it's like entering a parallel universe where common sense goes to die. First, I spent ten minutes looking for the milk, which apparently decided to relocate itself to the opposite end of the store since my last visit. Then I encountered the self-checkout machine, which I'm convinced was designed by someone who's never actually bought groceries. It kept asking me to place the item in the bagging area, but when I did, it yelled at me for having an unexpected item. I'm standing there arguing with a machine about whether my bananas are actually bananas. The highlight was when it asked if I wanted to donate to charity, and I accidentally said yes out loud, causing the elderly gentleman behind me to think I was talking to him. Technology, folks – making simple tasks complicated since forever!""",
+
+    "Casual Script": """Hey everyone! Hope you're all doing well. I wanted to share something pretty cool that happened to me this week. You know how we're always talking about trying new things and stepping out of our comfort zones? Well, I finally decided to take that cooking class I've been putting off for months. I was honestly a bit nervous at first because I can barely make toast without setting off the smoke alarm. But it turned out to be such an amazing experience! The instructor was super patient, and I learned how to make this incredible pasta dish from scratch. The best part was meeting other people who were just as clueless as me in the kitchen. We all laughed about our cooking disasters and shared tips. It really reminded me how much fun it can be to learn something new, even if you're terrible at it initially. I'm definitely going back next week!""",
+
+    "Presentation Script": """Welcome to our comprehensive overview of sustainable energy solutions for modern businesses. Climate change represents one of the most pressing challenges of our time, and organizations across all sectors must adapt their operations to meet evolving environmental standards. Today's presentation will explore three fundamental approaches to sustainable energy implementation: renewable energy adoption, energy efficiency optimization, and carbon footprint reduction strategies. Research indicates that companies investing in sustainable practices experience significant long-term cost savings while enhancing their brand reputation among environmentally conscious consumers. We'll examine real-world case studies demonstrating successful transitions to green energy systems, analyze the financial implications of various sustainable technologies, and provide actionable recommendations for immediate implementation. Our goal is to equip you with the knowledge necessary to make informed decisions about your organization's energy future while contributing to global sustainability efforts.""",
+
+    "Storytelling Script": """Once upon a time, in a small village nestled between rolling hills and whispering forests, there lived an old clockmaker named Henrik. His workshop was filled with the gentle ticking of countless timepieces, each one telling its own story through the rhythm of passing moments. One peculiar autumn morning, Henrik discovered something extraordinary – a clock that ticked backwards, its hands moving counterclockwise with deliberate precision. As he examined this mysterious timepiece, he noticed that with each backward tick, he could glimpse fragments of memories from days gone by. The clock showed him his childhood adventures, his first love, the day he opened his workshop, and countless precious moments he thought were lost forever. Henrik realized that this magical clock wasn't just measuring time; it was preserving the beautiful tapestry of human experience. From that day forward, he understood that every tick forward was just as precious as every memory from the past, and that time itself was the most valuable gift of all."""
+}
+
 def create_empty_results(error_message):
     """Create empty results tuple for error cases"""
     return (
         error_message,  # status
-        "",            # session_info
         "",            # transcript
         {},            # transcript_details
-        {},            # processing_metrics
         "",            # sentiment_summary
         None,          # sentiment_chart
         {},            # sentiment_details
         "",            # tonal_summary
         None,          # tonal_chart
-        {},            # prosodic_details
         {},            # voice_quality_details
         "",            # improved_text
-        "",            # issues_found
         "",            # improvement_feedback
         {},            # prosody_guide
-        "",            # ssml_markup
         None,          # improved_audio
         {},            # synthesis_info
         None,          # metrics_comparison
@@ -48,22 +56,17 @@ def format_for_gradio_outputs(formatted_results):
     """Convert formatted results to Gradio output tuple"""
     return (
         formatted_results.get('status', ''),
-        formatted_results.get('session_info', ''),
         formatted_results.get('transcript', ''),
         formatted_results.get('transcript_details', {}),
-        formatted_results.get('processing_metrics', {}),
         formatted_results.get('sentiment_summary', ''),
         formatted_results.get('sentiment_chart'),
         formatted_results.get('sentiment_details', {}),
         formatted_results.get('tonal_summary', ''),
         formatted_results.get('tonal_chart'),
-        formatted_results.get('prosodic_details', {}),
         formatted_results.get('voice_quality_details', {}),
         formatted_results.get('improved_text', ''),
-        formatted_results.get('issues_found', ''),
         formatted_results.get('improvement_feedback', ''),
         formatted_results.get('prosody_guide', {}),
-        formatted_results.get('ssml_markup', ''),
         formatted_results.get('improved_audio'),
         formatted_results.get('synthesis_info', {}),
         formatted_results.get('metrics_comparison'),
@@ -82,25 +85,40 @@ def safe_get_voice_options() -> list:
         print(f"Warning: Could not load voice options: {e}")
         return ["Default Voice", "Professional Voice", "Casual Voice"]
 
-def process_speech(audio_file, voice_selection, analysis_depth, improvement_focus):
+def update_text_input(script_choice):
+    """Update text input based on selected script"""
+    if script_choice and script_choice in EXAMPLE_SCRIPTS:
+        return EXAMPLE_SCRIPTS[script_choice]
+    return ""
+
+def process_speech(audio_file, text_input, voice_selection, analysis_depth, improvement_focus, progress=gr.Progress()):
     """Main processing function with comprehensive results handling"""
 
+    # Show loading progress
+    progress(0.1, desc="Starting analysis...")
+
     print(f"Processing audio: {audio_file}")
+    print(f"Text input: {text_input[:100]}..." if text_input else "No text")
     print(f"Voice: {voice_selection}")
     print(f"Depth: {analysis_depth}")
     print(f"Focus: {improvement_focus}")
 
-    if audio_file is None:
-        return create_empty_results("❌ Please upload an audio file")
+    if audio_file is None and not text_input:
+        return create_empty_results("❌ Please upload an audio file or provide text input")
 
-    # Validate audio file (basic validation)
-    try:
-        if hasattr(audio_file, 'name') and audio_file.name:
-            file_ext = audio_file.name.lower().split('.')[-1]
-            if file_ext not in Config.SUPPORTED_FORMATS:
-                return create_empty_results(f"❌ Unsupported file format: {file_ext}")
-    except Exception as e:
-        print(f"Validation error: {e}")
+    progress(0.2, desc="Validating input...")
+
+    # Validate audio file if provided
+    if audio_file:
+        try:
+            if hasattr(audio_file, 'name') and audio_file.name:
+                file_ext = audio_file.name.lower().split('.')[-1]
+                if file_ext not in Config.SUPPORTED_FORMATS:
+                    return create_empty_results(f"❌ Unsupported file format: {file_ext}")
+        except Exception as e:
+            print(f"Validation error: {e}")
+
+    progress(0.3, desc="Connecting to backend...")
 
     # Check backend availability
     try:
@@ -110,25 +128,48 @@ def process_speech(audio_file, voice_selection, analysis_depth, improvement_focu
         print(f"Health check error: {e}")
         return create_empty_results("❌ Could not connect to backend service")
 
-    # Prepare settings to match backend expectations
+    progress(0.5, desc="Processing audio/text...")
+
+    # Prepare settings
     settings = {
         "voice_selection": voice_selection,
         "analysis_depth": analysis_depth,
-        "improvement_focus": improvement_focus
+        "improvement_focus": improvement_focus,
+        "text_input": text_input if text_input else None
     }
 
-    # Process audio
+    # Process audio or text
     try:
-        with open(audio_file, 'rb') as f:
-            result = api_client.process_audio(f, settings)
+        if audio_file:
+            with open(audio_file, 'rb') as f:
+                result = api_client.process_audio(f, settings)
+        else:
+            result = api_client.process_text(settings)
+
+        progress(0.8, desc="Analyzing results...")
 
         if "error" in result:
             return create_empty_results(f"❌ Processing error: {result['error']}")
 
-        # Format all results using the comprehensive formatter
+        progress(0.9, desc="Formatting results...")
+
+        # Format results
         formatted_results = format_results_from_backend(result)
-        formatted_results['status'] = "✅ Processing completed successfully!"
-        
+
+        # Create a prettier status with loading bar effect
+        status_html = """
+        <div style="background: #e8f5e8; border: 1px solid #4caf50; border-radius: 8px; padding: 15px; margin: 10px 0;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <span style="color: #4caf50; font-size: 18px;">✅</span>
+                <span style="color: #2e7d32; font-weight: bold;">Processing completed successfully!</span>
+            </div>
+            <div class="loading-bar" style="background: linear-gradient(90deg, #4caf50, #8bc34a); height: 4px; border-radius: 2px; margin-top: 8px;"></div>
+        </div>
+        """
+        formatted_results['status'] = status_html
+
+        progress(1.0, desc="Complete!")
+
         return format_for_gradio_outputs(formatted_results)
 
     except Exception as e:
@@ -139,13 +180,6 @@ def process_speech(audio_file, voice_selection, analysis_depth, improvement_focu
 def create_interface():
     """Create the main Gradio interface"""
 
-    # Initialize session state (placeholder for future use)
-    try:
-        # Session state would be initialized here if needed
-        pass
-    except Exception as e:
-        print(f"Session state initialization error: {e}")
-
     # Get voice options safely
     voice_choices = safe_get_voice_options()
 
@@ -153,7 +187,7 @@ def create_interface():
     custom_css = """
     <style>
     .gradio-container {
-        max-width: 1200px !important;
+        max-width: 1000px !important;
     }
     .main-header {
         text-align: center;
@@ -166,6 +200,24 @@ def create_interface():
         padding-bottom: 0.5rem;
         margin-bottom: 1rem;
     }
+    .loading-bar {
+        background: linear-gradient(90deg, #4ECDC4, #45B7D1, #96CEB4);
+        background-size: 200% 200%;
+        animation: gradient 2s ease infinite;
+        height: 4px;
+        border-radius: 2px;
+        margin: 10px 0;
+    }
+    @keyframes gradient {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+    }
+    #fixed-textbox textarea {
+    resize: vertical;      /* allow manual resize if you want, or set to 'none' */
+    overflow-y: auto;      /* enable vertical scroll */
+    max-height: 150px;     /* same as 5 lines roughly */
+}
     </style>
     """
 
@@ -182,91 +234,145 @@ def create_interface():
         </div>
         """)
 
+        # Audio Input + Example Scripts side by side
         with gr.Row():
-            with gr.Column(scale=1):
+            with gr.Column():
                 gr.HTML('<h2 class="section-header">🎤 Audio Input</h2>')
-
-                # Audio input
                 audio_input = gr.Audio(
                     label="Upload or Record Audio",
                     type="filepath"
                 )
+            with gr.Column():
+                gr.HTML('<h3 class="section-header">📝 Example Scripts</h3>')
+                script_dropdown = gr.Dropdown(
+                    choices=list(EXAMPLE_SCRIPTS.keys()),
+                    label="Select Example Script",
+                    value=None
+                )
+                text_input = gr.Textbox(
+                    label="Text Input (Optional)",
+                    placeholder="Enter your text here or select an example script above...",
+                    lines=5,          # fixed visible lines
+                    max_lines=5,      # prevent auto-expansion
+                    elem_id="fixed-textbox"
+                )
 
-                gr.HTML('<h3 class="section-header">⚙️ Settings</h3>')
 
-                # Settings - matching what backend expects
+
+        # Settings split into two sides
+        gr.HTML('<h3 class="section-header">⚙️ Settings</h3>')
+        with gr.Row():
+            with gr.Column():
                 voice_selection = gr.Dropdown(
                     choices=voice_choices,
                     value=voice_choices[0],
-                    label="TTS Voice Style",
-                    allow_custom_value=False
+                    label="TTS Voice Style"
                 )
-
+            with gr.Column():
+                improvement_focus = gr.CheckboxGroup(
+                    choices=["Clarity", "Tone", "Pace", "Confidence", "Emotion"],
+                    value=["Clarity", "Tone"],
+                    label="Improvement Focus"
+                )
                 analysis_depth = gr.Radio(
                     choices=["Basic", "Detailed", "Comprehensive"],
                     value="Detailed",
                     label="Analysis Depth"
                 )
 
-                improvement_focus = gr.CheckboxGroup(
-                    choices=["Clarity", "Tone", "Pace", "Confidence", "Emotion"],
-                    value=["Clarity", "Tone"],
-                    label="Improvement Focus"
-                )
-
-                # Process button
-                process_btn = gr.Button(
-                    "🚀 Analyze Speech",
-                    variant="primary",
-                    size="lg"
-                )
-
-            with gr.Column(scale=2):
-                gr.HTML('<h2 class="section-header">📊 Results</h2>')
-
-                # Create comprehensive results display
-                results_components = create_results_display()
-
-        # Examples section
-        gr.HTML('<h3 style="color: #45B7D1; margin-top: 2rem;">📝 Example Use Cases</h3>')
-
+        # Example Use Cases (moved above settings)
+        gr.HTML('<h3 style="color: #45B7D1; margin-top: 1rem;">📝 Example Use Cases</h3>')
         with gr.Row():
             gr.Examples(
                 examples=[
-                    [None, "Default Voice", "Basic", ["Clarity"]],
-                    [None, "Professional Voice", "Detailed", ["Confidence", "Tone"]],
-                    [None, "Casual Voice", "Comprehensive", ["Clarity", "Pace", "Emotion"]]
+                    [None, None, "Default Voice", "Basic", ["Clarity"]],
+                    [None, None, "Professional Voice", "Detailed", ["Confidence", "Tone"]],
+                    [None, None, "Casual Voice", "Comprehensive", ["Clarity", "Pace", "Emotion"]]
                 ],
-                inputs=[audio_input, voice_selection, analysis_depth, improvement_focus],
+                inputs=[audio_input, text_input, voice_selection, analysis_depth, improvement_focus],
                 label="Try these settings combinations"
             )
 
-        # Event handlers - now handling all result components
+
+
+        # Process button
+        process_btn = gr.Button(
+            "🚀 Analyze Speech",
+            variant="primary",
+            size="lg"
+        )
+
+        # Results Section
+        gr.HTML('<h2 class="section-header">📊 Results</h2>')
+        status_output = gr.HTML(label="Processing Status")
+
+        # Transcript, Metrics, and Audio Results side by side
+        with gr.Row():
+            with gr.Column():
+                gr.HTML('<h3 class="section-header">📝 Transcript & Metrics</h3>')
+                transcript_output = gr.Textbox(label="Transcript", lines=3)
+                gr.HTML('<h3 class="section-header">🔊 Audio Results</h3>')
+                improved_audio_output = gr.Audio(label="Improved Audio")
+                synthesis_info_output = gr.JSON(label="Synthesis Info", visible=False)
+
+            with gr.Column():
+                gr.HTML('<h3 class="section-header">🔊 Feedback</h3>')
+                improved_text_output = gr.Textbox(label="Improved Text", lines=5)
+                improvement_feedback_output = gr.Textbox(label="Improvement Feedback", lines=5)
+
+        # Analysis Sections
+        with gr.Row():
+            with gr.Column():
+                gr.HTML('<h3 class="section-header">🎭 Sentiment Analysis</h3>')
+                sentiment_summary_output = gr.Textbox(label="Sentiment Summary", lines=3)
+                sentiment_chart_output = gr.Plot(label="Sentiment Chart")
+
+
+            with gr.Column():
+                gr.HTML('<h3 class="section-header">🎵 Voice & Tonal Analysis</h3>')
+                tonal_summary_output = gr.Textbox(label="Tonal Summary", lines=3)
+                tonal_chart_output = gr.Plot(label="Tonal Chart")
+
+
+
+        with gr.Accordion("📈 Visual Analysis ▼", open=False):
+            metrics_comparison_output = gr.Plot(label="Metrics Comparison")
+            timeline_chart_output = gr.Plot(label="Timeline Analysis")
+
+        # Hidden components for data that's not displayed
+        transcript_details_output = gr.JSON(visible=False)
+        sentiment_details_output = gr.JSON(visible=False)
+        voice_quality_details_output = gr.JSON(visible=False)
+        prosody_guide_output = gr.JSON(visible=False)
+
+        # Script dropdown event
+        script_dropdown.change(
+            fn=update_text_input,
+            inputs=[script_dropdown],
+            outputs=[text_input]
+        )
+
+        # Process button event
         process_btn.click(
             fn=process_speech,
-            inputs=[audio_input, voice_selection, analysis_depth, improvement_focus],
+            inputs=[audio_input, text_input, voice_selection, analysis_depth, improvement_focus],
             outputs=[
-                results_components['status'],
-                results_components['session_info'],
-                results_components['transcript'],
-                results_components['transcript_details'],
-                results_components['processing_metrics'],
-                results_components['sentiment_summary'],
-                results_components['sentiment_chart'],
-                results_components['sentiment_details'],
-                results_components['tonal_summary'],
-                results_components['tonal_chart'],
-                results_components['prosodic_details'],
-                results_components['voice_quality_details'],
-                results_components['improved_text'],
-                results_components['issues_found'],
-                results_components['improvement_feedback'],
-                results_components['prosody_guide'],
-                results_components['ssml_markup'],
-                results_components['improved_audio'],
-                results_components['synthesis_info'],
-                results_components['metrics_comparison'],
-                results_components['timeline_chart']
+                status_output,
+                transcript_output,
+                transcript_details_output,
+                sentiment_summary_output,
+                sentiment_chart_output,
+                sentiment_details_output,
+                tonal_summary_output,
+                tonal_chart_output,
+                voice_quality_details_output,
+                improved_text_output,
+                improvement_feedback_output,
+                prosody_guide_output,
+                improved_audio_output,
+                synthesis_info_output,
+                metrics_comparison_output,
+                timeline_chart_output
             ],
             show_progress=True
         )
@@ -275,7 +381,7 @@ def create_interface():
         gr.HTML("""
         <div style="text-align: center; margin-top: 3rem; padding: 1rem; color: #666;">
             <p>🎯 Pitch Perfect - AI-Powered Speech Improvement System</p>
-            <p>Upload audio → Get analysis → Improve your communication skills</p>
+            <p>Upload audio or enter text → Get analysis → Improve your communication skills</p>
         </div>
         """)
 
