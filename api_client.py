@@ -7,18 +7,19 @@ from config import Config
 
 class PitchPerfectAPI:
     def __init__(self):
-        self.base_url = Config.BACKEND_API_URL
+        self.base_url = Config.BACKEND_API_URL.rstrip('/')
         self.timeout = Config.REQUEST_TIMEOUT
 
     def health_check(self) -> bool:
         """Check if backend API is available"""
         try:
-            response = requests.get(
-                f"{self.base_url}/health",
-                timeout=5
-            )
+            url = f"{self.base_url}/health"
+            print(f"Checking backend health at: {url}")
+            response = requests.get(url, timeout=5)
+            print(f"Health check response: {response.status_code}")
             return response.status_code == 200
-        except:
+        except Exception as e:
+            print(f"Health check failed: {e}")
             return False
 
     def process_audio(self, audio_file, settings: Optional[Dict] = None) -> Dict[str, Any]:
