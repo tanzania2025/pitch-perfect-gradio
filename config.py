@@ -17,7 +17,7 @@ class Config:
     SUPPORTED_FORMATS = ["wav", "mp3", "m4a", "flac"]  # Removed dots
 
     # API Timeouts
-    REQUEST_TIMEOUT = 60
+    REQUEST_TIMEOUT = 180
 
     # Gradio Settings
     SHARE = os.getenv("GRADIO_SHARE", "False").lower() == "true"
