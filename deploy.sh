@@ -37,6 +37,7 @@ local_deploy() {
         --name ${IMAGE_NAME} \
         -p 7860:7860 \
         --env-file .env \
+        -e SERVER_PORT=7860 \
         ${IMAGE_NAME}:latest
 
     echo -e "${GREEN}✅ Local deployment complete!${NC}"
@@ -88,8 +89,7 @@ gcp_deploy() {
         --memory 2Gi \
         --cpu 1 \
         --timeout 300 \
-        --max-instances 10 \
-        --port 7860
+        --max-instances 10
 
     # Get service URL
     SERVICE_URL=$(gcloud run services describe ${SERVICE_NAME} --region=${REGION} --format="value(status.url)")

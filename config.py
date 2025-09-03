@@ -22,4 +22,4 @@ class Config:
     # Gradio Settings
     SHARE = os.getenv("GRADIO_SHARE", "False").lower() == "true"
     SERVER_NAME = os.getenv("SERVER_NAME", "0.0.0.0")
-    SERVER_PORT = int(os.getenv("SERVER_PORT", "7860"))
+    SERVER_PORT = int(os.getenv("PORT", os.getenv("SERVER_PORT", "7860")))
