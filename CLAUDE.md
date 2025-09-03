@@ -18,15 +18,6 @@ python app.py
 
 # Run minimal UI version (no backend required, for UI development)
 python app_minimal.py
-
-# Run with Docker
-docker-compose up
-```
-
-### Deployment
-```bash
-# Deploy to Google Cloud Run (requires gcloud CLI)
-./deploy.sh
 ```
 
 ### Testing and Validation
@@ -67,11 +58,6 @@ docker-compose up
   - Gradio server settings
 - **.env**: Environment variables (copy from .env.example)
 
-### Deployment Configuration
-- Platform: Google Cloud Run
-- Project: pitchperfect-lewagon
-- Region: europe-west1
-- Resources: 2Gi memory, 1 CPU, max 10 instances
 
 ## Development Guidelines
 
@@ -90,10 +76,6 @@ docker-compose up
 2. API base URL is configured via BACKEND_URL env var
 3. Handle errors gracefully with user-friendly messages
 
-### When deploying:
-1. Ensure .env is properly configured
-2. Run deploy.sh for Google Cloud Run deployment
-3. Check container health at /health endpoint
 
 ## Error Handling Guidelines
 

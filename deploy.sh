@@ -1,68 +1,123 @@
 #!/bin/bash
-
-# Pitch Perfect Frontend - Cloud Run Deployment Script
+# Simple deployment script for Pitch Perfect Gradio
 
 set -e
 
-# Configuration
-PROJECT_ID="pitchperfect-lewagon"
-SERVICE_NAME="pitch-perfect-frontend"
-REGION="europe-west1"  # Adjust based on your preference
-IMAGE_NAME="gcr.io/${PROJECT_ID}/${SERVICE_NAME}"
-
-echo "🚀 Deploying Pitch Perfect Frontend to Cloud Run"
-echo "Project: ${PROJECT_ID}"
-echo "Service: ${SERVICE_NAME}"
-echo "Region: ${REGION}"
-
-# Authenticate with Google Cloud (if not already done)
-echo "📋 Checking authentication..."
-if ! gcloud auth list --filter=status:ACTIVE --format="value(account)" | head -n1 > /dev/null; then
-    echo "Please authenticate with Google Cloud:"
-    gcloud auth login
+# Load environment variables from .env
+if [ -f .env ]; then
+    export $(grep -v '^#' .env | xargs)
 fi
 
-# Set the project
-echo "🔧 Setting project..."
-gcloud config set project ${PROJECT_ID}
+# Deployment configuration
+SERVICE_NAME="pitch-perfect-frontend"
+REPOSITORY="pitch-perfect-frontend-repo"
+IMAGE_NAME="pitch-perfect-frontend"
 
-# Enable required APIs
-echo "🔌 Enabling required APIs..."
-gcloud services enable cloudbuild.googleapis.com
-gcloud services enable run.googleapis.com
-gcloud services enable storage.googleapis.com
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
 
-# Build the Docker image
-echo "🏗️  Building Docker image..."
-gcloud builds submit --tag ${IMAGE_NAME} .
+usage() {
+    echo "Usage: $0 [local|gcp]"
+    echo "  local  - Build and run locally with Docker"
+    echo "  gcp    - Build, push to Artifact Registry, and deploy to Cloud Run"
+    exit 1
+}
 
-# Deploy to Cloud Run
-echo "🚀 Deploying to Cloud Run..."
-gcloud run deploy ${SERVICE_NAME} \
-    --image ${IMAGE_NAME} \
-    --platform managed \
-    --region ${REGION} \
-    --allow-unauthenticated \
-    --memory 2Gi \
-    --cpu 1 \
-    --timeout 3600 \
-    --concurrency 10 \
-    --max-instances 10 \
-    --port 7860 \
-    --set-env-vars ENVIRONMENT=production \
-    --set-env-vars GCP_PROJECT_ID=${PROJECT_ID} \
-    --set-env-vars GCS_BUCKET_NAME=pp-pitchperfect-lewagon-raw-data \
-    --set-env-vars LOG_LEVEL=INFO \
-    --set-env-vars BACKEND_API_URL=https://pitch-perfect-backend-792590041292.europe-west1.run.app
+local_deploy() {
+    echo -e "${GREEN}🏠 Local Docker Deployment${NC}"
 
-# Get the service URL
-SERVICE_URL=$(gcloud run services describe ${SERVICE_NAME} --region=${REGION} --format="value(status.url)")
+    echo "Building Docker image..."
+    docker build -t ${IMAGE_NAME}:latest .
 
-echo ""
-echo "✅ Deployment completed successfully!"
-echo "🌐 Your application is available at: ${SERVICE_URL}"
-echo ""
-echo "📋 Useful commands:"
-echo "   View logs: gcloud run logs tail ${SERVICE_NAME} --region=${REGION}"
-echo "   Update service: gcloud run services update ${SERVICE_NAME} --region=${REGION}"
-echo "   Delete service: gcloud run services delete ${SERVICE_NAME} --region=${REGION}"
+    echo "Running container locally..."
+    docker run -d \
+        --name ${IMAGE_NAME} \
+        -p 7860:7860 \
+        --env-file .env \
+        ${IMAGE_NAME}:latest
+
+    echo -e "${GREEN}✅ Local deployment complete!${NC}"
+    echo -e "${YELLOW}Access your app at: http://localhost:7860${NC}"
+    echo -e "${YELLOW}Stop with: docker stop ${IMAGE_NAME}${NC}"
+}
+
+gcp_deploy() {
+    echo -e "${GREEN}☁️  Google Cloud Deployment${NC}"
+
+    # Check if gcloud is authenticated
+    if ! gcloud auth list --filter=status:ACTIVE --format="value(account)" | head -n1 > /dev/null; then
+        echo -e "${RED}Please authenticate with gcloud first: gcloud auth login${NC}"
+        exit 1
+    fi
+
+    # Set project
+    gcloud config set project ${PROJECT_ID}
+
+    # Enable APIs
+    echo "Enabling required APIs..."
+    gcloud services enable artifactregistry.googleapis.com
+    gcloud services enable run.googleapis.com
+
+    # Create Artifact Registry repository if it doesn't exist
+    echo "Creating Artifact Registry repository..."
+    gcloud artifacts repositories create ${REPOSITORY} \
+        --repository-format=docker \
+        --location=${REGION} \
+        --description="Pitch Perfect containers" || true
+
+    # Configure Docker for Artifact Registry
+    gcloud auth configure-docker ${REGION}-docker.pkg.dev
+
+    # Build image
+    IMAGE_URI="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}/${IMAGE_NAME}:latest"
+    echo "Building and pushing image to ${IMAGE_URI}..."
+
+    docker build --platform linux/amd64 -t ${IMAGE_URI} .
+    docker push ${IMAGE_URI}
+
+    # Deploy to Cloud Run
+    echo "Deploying to Cloud Run..."
+    gcloud run deploy ${SERVICE_NAME} \
+        --image ${IMAGE_URI} \
+        --platform managed \
+        --region ${REGION} \
+        --allow-unauthenticated \
+        --memory 2Gi \
+        --cpu 1 \
+        --timeout 300 \
+        --max-instances 10 \
+        --port 7860
+
+    # Get service URL
+    SERVICE_URL=$(gcloud run services describe ${SERVICE_NAME} --region=${REGION} --format="value(status.url)")
+
+    echo -e "${GREEN}✅ GCP deployment complete!${NC}"
+    echo -e "${YELLOW}Your app is available at: ${SERVICE_URL}${NC}"
+}
+
+cleanup_local() {
+    echo "Cleaning up local containers..."
+    docker stop ${IMAGE_NAME} 2>/dev/null || true
+    docker rm ${IMAGE_NAME} 2>/dev/null || true
+}
+
+# Main script
+case "${1:-}" in
+    "local")
+        cleanup_local
+        local_deploy
+        ;;
+    "gcp")
+        gcp_deploy
+        ;;
+    "clean")
+        cleanup_local
+        echo "Local cleanup complete"
+        ;;
+    *)
+        usage
+        ;;
+esac

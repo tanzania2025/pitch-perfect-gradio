@@ -1,26 +1,11 @@
 services:
-  frontend:
+  app:
     build: .
     ports:
       - "7860:7860"
-    env_file:
-      - .env
     environment:
       - GRADIO_SERVER_NAME=0.0.0.0
+      - GRADIO_SERVER_PORT=7860
+    env_file:
+      - .env
     restart: unless-stopped
-    # If your backend runs as another container, uncomment and adapt:
-    # depends_on:
-    #   - backend
-    # networks:
-    #   - appnet
-
-  # backend:
-  #   image: your-backend-image
-  #   ports:
-  #     - "8000:8000"
-  #   networks:
-  #     - appnet
-
-# networks:
-#   appnet:
-#     driver: bridge

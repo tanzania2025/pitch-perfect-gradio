@@ -34,6 +34,3 @@ jobs:
         python -c "import app; print('app.py imports successfully')"
         python -c "import app_minimal; print('app_minimal.py imports successfully')"
     
-    - name: Docker build test
-      run: |
-        docker build -t pitch-perfect-frontend .

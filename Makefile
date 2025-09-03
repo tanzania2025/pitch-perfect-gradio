@@ -56,8 +56,8 @@ freeze: ## Update requirements.txt with current packages
 
 .PHONY: analyze-deps
 analyze-deps: ## Analyze and update dependencies
-	$(PYTHON) analyze_requirements.py
-	$(PYTHON) check_packages.py
+	$(PYTHON) scripts/analyze_requirements.py
+	$(PYTHON) scripts/check_packages.py
 
 .PHONY: format
 format: ## Format code with black
@@ -79,23 +79,24 @@ run-minimal: ## Run minimal UI version (no backend needed)
 
 .PHONY: docker-build
 docker-build: ## Build Docker image
-	docker build -t $(PROJECT_NAME) .
+	docker build -t pitch-perfect-gradio:latest .
 
 .PHONY: docker-run
-docker-run: ## Run with Docker
-	docker run -p 7860:7860 --env-file .env $(PROJECT_NAME)
+docker-run: ## Run with Docker locally
+	./deploy.sh local
 
-.PHONY: docker-compose-up
-docker-compose-up: ## Run with docker-compose
+.PHONY: docker-compose
+docker-compose: ## Run with docker-compose
 	docker-compose up
 
-.PHONY: docker-compose-down
-docker-compose-down: ## Stop docker-compose
-	docker-compose down
+.PHONY: docker-clean
+docker-clean: ## Clean up Docker containers
+	./deploy.sh clean
 
-.PHONY: deploy
-deploy: ## Deploy to Google Cloud Run
-	./deploy.sh
+.PHONY: deploy-gcp
+deploy-gcp: ## Deploy to Google Cloud Platform
+	./deploy.sh gcp
+
 
 .PHONY: setup
 setup: clean pyenv-install venv ## Complete setup from scratch
