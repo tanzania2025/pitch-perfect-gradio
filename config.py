@@ -12,8 +12,9 @@ class Config:
     APP_DESCRIPTION = "Analyze and improve your speech patterns with AI"
 
     # Audio Settings
-    MAX_AUDIO_DURATION = 300  # 5 minutes
-    SUPPORTED_FORMATS = [".wav", ".mp3", ".m4a", ".flac"]
+    MAX_AUDIO_DURATION = 300  # 5 minutes in seconds
+    MAX_UPLOAD_SIZE = 25      # Maximum file size in MB
+    SUPPORTED_FORMATS = ["wav", "mp3", "m4a", "flac"]  # Removed dots
 
     # API Timeouts
     REQUEST_TIMEOUT = 60
