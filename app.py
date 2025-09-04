@@ -420,8 +420,9 @@ def create_interface():
 
 
         with gr.Accordion("📈 Visual Analysis ▼", open=False):
-            metrics_comparison_output = gr.Plot(label="Metrics Comparison")
-            timeline_chart_output = gr.Plot(label="Timeline Analysis")
+            with gr.Row():
+                metrics_comparison_output = gr.Plot(label="Metrics Comparison")
+                timeline_chart_output = gr.Plot(label="Timeline Analysis")
 
         # Hidden components for data that's not displayed
         transcript_details_output = gr.JSON(visible=False)

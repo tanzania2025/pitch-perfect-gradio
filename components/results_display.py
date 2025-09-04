@@ -71,12 +71,34 @@ def format_results_from_backend(result: Dict[str, Any]) -> Dict[str, Any]:
         imp = result['improvements']
         formatted['improved_text'] = imp.get('improved_text', '')
 
-        # Use summary_feedback if available, otherwise build from feedback
-        if 'summary_feedback' in imp:
-            formatted['improvement_feedback'] = imp['summary_feedback']
+        # Display both feedback types
+        feedback_parts = []
+        
+        # Add summary_feedback if available
+        if 'summary_feedback' in imp and imp['summary_feedback']:
+            feedback_parts.append("📝 **Summary Feedback:**")
+            feedback_parts.append(imp['summary_feedback'])
+        
+        # Add detailed feedback if available
+        feedback = imp.get('feedback', {})
+        if feedback:
+            if feedback_parts:  # Add separator if we already have summary
+                feedback_parts.append("\n" + "─" * 50)
+            feedback_parts.append("🔍 **Detailed Feedback:**")
+            if isinstance(feedback, dict):
+                if 'summary' in feedback:
+                    feedback_parts.append(feedback['summary'])
+                for key, value in feedback.items():
+                    if key not in ['summary', 'severity', 'issues_found'] and value:
+                        feedback_parts.append(f"**{key.replace('_', ' ').title()}:** {value}")
+            else:
+                feedback_parts.append(str(feedback))
+        
+        # Combine all feedback or use fallback
+        if feedback_parts:
+            formatted['improvement_feedback'] = '\n'.join(feedback_parts)
         else:
-            feedback = imp.get('feedback', {})
-            formatted['improvement_feedback'] = feedback.get('summary', 'No feedback available.')
+            formatted['improvement_feedback'] = 'No feedback available.'
 
         formatted['prosody_guide'] = imp.get('prosody_guide', {})
 
@@ -224,55 +246,72 @@ def format_tonal_summary(tonal):
             lines.append(f"  Arousal: {arousal:.2f} ({arousal_desc})")
             lines.append(f"    → How energetic/calm your speech sounds")
 
-    # Prosodic features as a formatted table
+    # Simplified prosodic features analysis
     prosodic = tonal.get('prosodic_features', {})
     if prosodic:
         lines.append("\n🎼 PROSODIC FEATURES:")
-        lines.append("Feature                       Value   Level")
-        lines.append("-" * 45)
+        
+        # Analyze pitch category
+        pitch_features = prosodic.get('pitch', {})
+        if pitch_features:
+            pitch_mean = pitch_features.get('mean_hz', 0)
+            if pitch_mean < 150:
+                pitch_level = "Low"
+            elif pitch_mean > 250:
+                pitch_level = "High"
+            else:
+                pitch_level = "Normal"
+            lines.append(f"  Pitch: {pitch_level}")
+        
+        # Analyze energy category
+        energy_features = prosodic.get('energy', {})
+        if energy_features:
+            energy_mean = energy_features.get('mean_db', 0)
+            if energy_mean < -35:
+                energy_level = "Low"
+            elif energy_mean > -15:
+                energy_level = "High"
+            else:
+                energy_level = "Normal"
+            lines.append(f"  Energy: {energy_level}")
+        
+        # Analyze tempo category
+        tempo_features = prosodic.get('tempo', {})
+        if tempo_features:
+            speaking_rate = tempo_features.get('speaking_rate_wpm', 0)
+            if speaking_rate < 120:
+                tempo_level = "Low"
+            elif speaking_rate > 180:
+                tempo_level = "High"
+            else:
+                tempo_level = "Normal"
+            lines.append(f"  Tempo: {tempo_level}")
+        
+        # Analyze pauses category
+        pause_features = prosodic.get('pauses', {})
+        if pause_features:
+            pause_ratio = pause_features.get('pause_ratio', 0)
+            if pause_ratio < 0.1:
+                pause_level = "Low"
+            elif pause_ratio > 0.3:
+                pause_level = "High"
+            else:
+                pause_level = "Normal"
+            lines.append(f"  Pauses: {pause_level}")
 
-        # Define typical ranges for comparison
-        typical_ranges = {
-            'mean_hz': (120, 200, 300),
-            'std_hz': (20, 50, 100),
-            'mean_db': (-40, -20, -10),
-            'speaking_rate_wpm': (120, 160, 200),
-            'syllables_per_second': (2, 4, 6),
-            'pause_ratio': (0.1, 0.3, 0.5),
-            'average_pause_duration': (0.3, 0.6, 1.0),
-        }
 
-        # Process nested prosodic features
-        for category, features in prosodic.items():
-            if isinstance(features, dict):
-                for key, value in features.items():
-                    if isinstance(value, (int, float)):
-                        # Create descriptive name
-                        clean_key = f"{category.title()} {key.replace('_', ' ').title()}"
-
-                        # Determine level
-                        level = "Normal"
-                        if key in typical_ranges:
-                            low, normal, high = typical_ranges[key]
-                            if value < low:
-                                level = "Low"
-                            elif value > high:
-                                level = "High"
-
-                        # Fixed width formatting for perfect alignment
-                        lines.append(f"{clean_key:<29} {value:>7.2f}   {level}")
-
-
-    # Voice quality
+    # Voice quality - only show non-zero numbers
     voice_quality = tonal.get('voice_quality', {})
     if voice_quality:
         lines.append("\n🎤 VOICE QUALITY:")
         for key, value in voice_quality.items():
             clean_key = key.replace('_', ' ').title()
             if isinstance(value, (int, float)):
-                lines.append(f"  {clean_key}: {value:.2f}")
+                if value != 0:  # Only display non-zero values
+                    lines.append(f"  {clean_key}: {value:.2f}")
             else:
-                lines.append(f"  {clean_key}: {value}")
+                if value:  # Only display non-empty strings
+                    lines.append(f"  {clean_key}: {value}")
 
     # Acoustic problems - make them user-readable
 
