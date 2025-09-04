@@ -18,7 +18,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 try:
     from api_client import PitchPerfectAPI
     from config import Config
-    from components.results_display import create_results_display, format_results_from_backend
+    from components.results_display import cleanup_temp_audio_files, format_results_from_backend
 except ImportError as e:
     logger.error(f"Import error: {e}")
     logger.error("Please make sure all component files are created correctly.")
@@ -102,7 +102,7 @@ def update_text_input(script_choice):
 
 def process_speech(audio_file, text_input, voice_selection, analysis_depth, improvement_focus, progress=gr.Progress()):
     """Main processing function with comprehensive results handling"""
-
+    cleanup_temp_audio_files()
     # Show loading progress
     progress(0.1, desc="Starting analysis...")
 
