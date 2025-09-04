@@ -185,13 +185,13 @@ def format_sentiment_summary(sentiment):
     lines = ["🎭 SENTIMENT ANALYSIS SUMMARY", "=" * 40]
 
     if 'emotion' in sentiment:
-        lines.append(f"Primary Emotion: **{sentiment['emotion'].title()}**")
+        lines.append(f"Primary Emotion: {sentiment['emotion'].title()}")
     if 'confidence' in sentiment:
-        lines.append(f"Confidence: **{sentiment['confidence']:.1%}**")
+        lines.append(f"Confidence: {sentiment['confidence']:.1%}")
     if 'sentiment' in sentiment:
-        lines.append(f"Overall Sentiment: **{sentiment['sentiment'].title()}**")
-    if 'valence' in sentiment and 'arousal' in sentiment:
-        lines.append(f"Valence: {sentiment['valence']:.2f} | Arousal: {sentiment['arousal']:.2f}")
+        lines.append(f"Overall Sentiment: {sentiment['sentiment'].title()}")
+
+
 
     if 'emotion_scores' in sentiment:
         lines.append("\n📊 EMOTION BREAKDOWN:")
@@ -208,32 +208,80 @@ def format_tonal_summary(tonal):
 
     lines = ["🎵 VOICE & TONAL ANALYSIS", "=" * 40]
 
-    # Prosodic features
+
+    # Add valence and arousal explanations here
+    if 'valence' in tonal or 'arousal' in tonal:
+        lines.append("\n🧠 EMOTIONAL DIMENSIONS:")
+        if 'valence' in tonal:
+            valence = tonal['valence']
+            valence_desc = "Positive" if valence > 0.5 else "Negative" if valence < -0.5 else "Neutral"
+            lines.append(f"  Valence: {valence:.2f} ({valence_desc})")
+            lines.append(f"    → How pleasant/unpleasant your speech sounds")
+
+        if 'arousal' in tonal:
+            arousal = tonal['arousal']
+            arousal_desc = "High Energy" if arousal > 0.5 else "Low Energy" if arousal < -0.5 else "Moderate Energy"
+            lines.append(f"  Arousal: {arousal:.2f} ({arousal_desc})")
+            lines.append(f"    → How energetic/calm your speech sounds")
+
+    # Prosodic features as a formatted table
     prosodic = tonal.get('prosodic_features', {})
     if prosodic:
         lines.append("\n🎼 PROSODIC FEATURES:")
-        for key, value in prosodic.items():
-            if isinstance(value, (int, float)):
-                lines.append(f"  {key.replace('_', ' ').title()}: {value:.2f}")
-            else:
-                lines.append(f"  {key.replace('_', ' ').title()}: {value}")
+        lines.append("Feature                       Value   Level")
+        lines.append("-" * 45)
+
+        # Define typical ranges for comparison
+        typical_ranges = {
+            'mean_hz': (120, 200, 300),
+            'std_hz': (20, 50, 100),
+            'mean_db': (-40, -20, -10),
+            'speaking_rate_wpm': (120, 160, 200),
+            'syllables_per_second': (2, 4, 6),
+            'pause_ratio': (0.1, 0.3, 0.5),
+            'average_pause_duration': (0.3, 0.6, 1.0),
+        }
+
+        # Process nested prosodic features
+        for category, features in prosodic.items():
+            if isinstance(features, dict):
+                for key, value in features.items():
+                    if isinstance(value, (int, float)):
+                        # Create descriptive name
+                        clean_key = f"{category.title()} {key.replace('_', ' ').title()}"
+
+                        # Determine level
+                        level = "Normal"
+                        if key in typical_ranges:
+                            low, normal, high = typical_ranges[key]
+                            if value < low:
+                                level = "Low"
+                            elif value > high:
+                                level = "High"
+
+                        # Fixed width formatting for perfect alignment
+                        lines.append(f"{clean_key:<29} {value:>7.2f}   {level}")
+
 
     # Voice quality
     voice_quality = tonal.get('voice_quality', {})
     if voice_quality:
         lines.append("\n🎤 VOICE QUALITY:")
         for key, value in voice_quality.items():
+            clean_key = key.replace('_', ' ').title()
             if isinstance(value, (int, float)):
-                lines.append(f"  {key.replace('_', ' ').title()}: {value:.2f}")
+                lines.append(f"  {clean_key}: {value:.2f}")
             else:
-                lines.append(f"  {key.replace('_', ' ').title()}: {value}")
+                lines.append(f"  {clean_key}: {value}")
 
-    # Acoustic problems
+    # Acoustic problems - make them user-readable
+
     problems = tonal.get('acoustic_problems', [])
     if problems:
         lines.append("\n⚠️ ISSUES DETECTED:")
         for problem in problems:
-            lines.append(f"  • {problem}")
+            readable_problem = problem.replace('_', ' ').title()
+            lines.append(f"  • {readable_problem}")
 
     return "\n".join(lines)
 
@@ -391,9 +439,3 @@ def create_timeline_chart(result):
     )
 
     return fig
-
-
-def create_results_display():
-    """Create results display components (if needed for other parts of your app)"""
-    # This function can be used to create reusable display components
-    pass
