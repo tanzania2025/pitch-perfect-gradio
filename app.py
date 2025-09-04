@@ -45,7 +45,6 @@ def create_empty_results(error_message):
         {},            # voice_quality_details
         "",            # improved_text
         "",            # improvement_feedback
-        {},            # prosody_guide
         None,          # improved_audio
         {},            # synthesis_info
         None,          # metrics_comparison
@@ -66,7 +65,6 @@ def format_for_gradio_outputs(formatted_results):
         formatted_results.get('voice_quality_details', {}),
         formatted_results.get('improved_text', ''),
         formatted_results.get('improvement_feedback', ''),
-        formatted_results.get('prosody_guide', {}),
         formatted_results.get('improved_audio'),
         formatted_results.get('synthesis_info', {}),
         formatted_results.get('metrics_comparison'),
@@ -343,7 +341,7 @@ def create_interface():
         transcript_details_output = gr.JSON(visible=False)
         sentiment_details_output = gr.JSON(visible=False)
         voice_quality_details_output = gr.JSON(visible=False)
-        prosody_guide_output = gr.JSON(visible=False)
+        # prosody_guide_output = gr.JSON(visible=False)
 
         # Script dropdown event
         script_dropdown.change(
@@ -368,7 +366,7 @@ def create_interface():
                 voice_quality_details_output,
                 improved_text_output,
                 improvement_feedback_output,
-                prosody_guide_output,
+                # prosody_guide_output,
                 improved_audio_output,
                 synthesis_info_output,
                 metrics_comparison_output,
