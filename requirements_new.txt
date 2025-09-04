@@ -143,6 +143,7 @@ pager
 palette
 pandas==2.3.2
 panel
+pkg_resources
 pkgutil
 plistlib
 plotly==6.3.0
