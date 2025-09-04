@@ -33,6 +33,15 @@ class PitchPerfectAPI:
             settings = settings or {}
             target_style = settings.get("voice_selection", "professional").lower().replace(" voice", "")
             improvement_focus = settings.get("improvement_focus", ["clarity", "tone"])
+            voice_id = settings.get("voice_id")  # Get the actual voice_id
+            
+            logger.info("="*60)
+            logger.info("[FRONTEND->BACKEND] SENDING REQUEST DATA:")
+            logger.info(f"  Raw settings received: {settings}")
+            logger.info(f"  Extracted voice_id: {voice_id}")
+            logger.info(f"  Extracted target_style: {target_style}")
+            logger.info(f"  Extracted improvement_focus: {improvement_focus}")
+            logger.info("="*60)
 
             # Convert improvement_focus list to string if needed
             if isinstance(improvement_focus, list):
@@ -62,6 +71,14 @@ class PitchPerfectAPI:
                 "save_audio": True
             }
 
+            # Add voice_id if provided
+            if voice_id:
+                data["voice_id"] = voice_id
+
+            logger.info(f"[FRONTEND->BACKEND] Final request data: {data}")
+            logger.info(f"[FRONTEND->BACKEND] Request URL: {self.base_url}/process-audio")
+            logger.info(f"[FRONTEND->BACKEND] Audio filename: {filename}")
+
             # Use the correct backend endpoint /process-audio
             response = requests.post(
                 f"{self.base_url}/process-audio",
@@ -73,15 +90,24 @@ class PitchPerfectAPI:
             if response.status_code == 200:
                 result = response.json()
 
-                # Debug: Log the actual response structure
-                logger.debug("=== BACKEND RESPONSE DEBUG ===")
-                logger.debug(f"Keys in response: {list(result.keys())}")
+                logger.info("="*60)
+                logger.info("[BACKEND->FRONTEND] RECEIVED RESPONSE DATA:")
+                logger.info(f"  Response status code: {response.status_code}")
+                logger.info(f"  Response keys: {list(result.keys())}")
+                
+                # Log each section in detail
                 for key, value in result.items():
                     if isinstance(value, dict):
-                        logger.debug(f"{key}: {list(value.keys())}")
+                        logger.info(f"  {key} (dict): {list(value.keys())}")
+                        if key == "synthesis" and value:
+                            logger.info(f"    synthesis details: voice_used={value.get('voice_used')}, voice_id={value.get('voice_id')}, output_path={value.get('output_path')}")
+                        if key == "metadata" and value:
+                            logger.info(f"    metadata: voice_id={value.get('voice_id')}, preferences={value.get('preferences')}")
+                    elif isinstance(value, list):
+                        logger.info(f"  {key} (list): {len(value)} items")
                     else:
-                        logger.debug(f"{key}: {type(value)}")
-                logger.debug("=== END DEBUG ===")
+                        logger.info(f"  {key}: {type(value).__name__} = {str(value)[:100]}")
+                logger.info("="*60)
 
                 # Return the complete backend response with all fields intact
                 # The backend already provides well-structured data
@@ -91,20 +117,20 @@ class PitchPerfectAPI:
                     "session_id": result.get("session_id"),
                     "processing_status": result.get("processing_status", "completed"),
                     "input_audio": result.get("input_audio"),
-                    
+
                     # Transcription data
                     "transcription": result.get("transcription", {}),
-                    
+
                     # Analysis results
                     "sentiment": result.get("sentiment", {}),
                     "tonal": result.get("tonal", {}),
-                    
+
                     # Improvements
                     "improvements": result.get("improvements", {}),
-                    
+
                     # Audio synthesis
                     "synthesis": result.get("synthesis", {}),
-                    
+
                     # Processing metrics
                     "metrics": result.get("metrics", {}),
                 }
@@ -132,15 +158,40 @@ class PitchPerfectAPI:
             return {"error": f"Connection error: {str(e)}"}
 
     def get_voice_options(self) -> Dict[str, Any]:
-        """Get available TTS voices - use fallback since backend doesn't have /voices endpoint"""
-        # Since your backend doesn't have a /voices endpoint, provide hardcoded options
-        # that match your ElevenLabs/TTS configuration
+        """Get available TTS voices from backend"""
+        try:
+            url = f"{self.base_url}/voices"
+            logger.info(f"[FRONTEND->BACKEND] Fetching voices from: {url}")
+            response = requests.get(url, timeout=10)
+
+            if response.status_code == 200:
+                voices_data = response.json()
+                logger.info("="*60)
+                logger.info("[BACKEND->FRONTEND] VOICES RESPONSE:")
+                logger.info(f"  Status: {response.status_code}")
+                logger.info(f"  Number of voices: {len(voices_data.get('voices', []))}")
+                
+                for i, voice in enumerate(voices_data.get('voices', [])[:3]):  # Log first 3
+                    logger.info(f"  Voice {i+1}: {voice['name']} (ID: {voice['voice_id']}, Category: {voice['category']})")
+                    if voice.get('description'):
+                        logger.info(f"    Description: {voice['description'][:80]}...")
+                logger.info("="*60)
+                return voices_data
+            else:
+                logger.warning(f"⚠️ Failed to fetch voices: HTTP {response.status_code}")
+                # Fallback to hardcoded options
+                return self._get_fallback_voices()
+
+        except Exception as e:
+            logger.error(f"❌ Error fetching voices: {e}")
+            return self._get_fallback_voices()
+
+    def _get_fallback_voices(self) -> Dict[str, Any]:
+        """Fallback voice options when backend is unavailable"""
         return {
             "voices": [
-                "Professional Voice",
-                "Casual Voice",
-                "Academic Voice",
-                "Motivational Voice",
-                "Default Voice"
+                {"voice_id": None, "name": "Default Voice", "category": "Standard", "description": "Default system voice"},
+                {"voice_id": "onwK4e9ZLuTAKqWW03F9", "name": "Professional Voice", "category": "Professional", "description": "Clear professional voice"},
+                {"voice_id": None, "name": "Casual Voice", "category": "Casual", "description": "Friendly casual voice"}
             ]
         }
