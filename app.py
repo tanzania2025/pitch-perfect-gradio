@@ -50,7 +50,6 @@ def create_empty_results(error_message):
         None,          # sentiment_chart
         {},            # sentiment_details
         "",            # tonal_summary
-        None,          # tonal_chart
         {},            # voice_quality_details
         "",            # improved_text
         "",            # improvement_feedback
@@ -71,7 +70,6 @@ def format_for_gradio_outputs(formatted_results):
         formatted_results.get('sentiment_chart'),
         formatted_results.get('sentiment_details', {}),
         formatted_results.get('tonal_summary', ''),
-        formatted_results.get('tonal_chart'),
         formatted_results.get('voice_quality_details', {}),
         formatted_results.get('improved_text', ''),
         formatted_results.get('improvement_feedback', ''),
@@ -114,7 +112,7 @@ def safe_get_voice_options() -> tuple:
                     display_name = f"{voice['name']} ({voice['category']}) - {description}"
                 else:
                     display_name = f"{voice['name']} ({voice['category']})"
-            
+
             voice_choices.append(display_name)
             voice_mapping[display_name] = voice['voice_id']
 
@@ -191,17 +189,17 @@ def process_speech(audio_file, text_input, voice_selection, analysis_depth, impr
     logger.info(f"  Improvement focus: {improvement_focus}")
     logger.info(f"  Text input provided: {bool(text_input)}")
     logger.info(f"  Available voice mappings: {len(voice_id_mapping)} total")
-    
+
     # Debug: Show all available mappings
     logger.info("  All voice mappings:")
     for display_name, vid in voice_id_mapping.items():
         logger.info(f"    '{display_name}' -> '{vid}'")
-    
+
     # Check if voice_selection exists in mapping
     if voice_selection not in voice_id_mapping:
         logger.warning(f"  WARNING: Voice selection '{voice_selection}' not found in mapping!")
         logger.warning(f"  Available keys: {list(voice_id_mapping.keys())}")
-    
+
     logger.info("="*60)
 
     # Prepare settings
@@ -212,7 +210,7 @@ def process_speech(audio_file, text_input, voice_selection, analysis_depth, impr
         "improvement_focus": improvement_focus,
         "text_input": text_input if text_input else None
     }
-    
+
     # Double-check voice_id before sending
     if not voice_id:
         logger.warning(f"[FRONTEND] WARNING: voice_id is None/empty for selection '{voice_selection}'")
@@ -418,7 +416,6 @@ def create_interface():
             with gr.Column():
                 gr.HTML('<h3 class="section-header">🎵 Voice & Tonal Analysis</h3>')
                 tonal_summary_output = gr.Textbox(label="Tonal Summary", lines=3)
-                tonal_chart_output = gr.Plot(label="Tonal Chart")
 
 
 
@@ -451,7 +448,6 @@ def create_interface():
                 sentiment_chart_output,
                 sentiment_details_output,
                 tonal_summary_output,
-                tonal_chart_output,
                 voice_quality_details_output,
                 improved_text_output,
                 improvement_feedback_output,
